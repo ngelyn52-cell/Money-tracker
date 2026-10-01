@@ -30,7 +30,7 @@ button{border:0;cursor:pointer}
 .green{color:var(--green)}.red{color:var(--red)}
 .section{margin-top:18px}
 .sectionhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
-.sectionhead h2{font-size:16px;margin:0}.tiny{font-size:12px;color:var(--muted)}
+.sectionhead h2{font-size:16px;margin:0}.tiny{font-size:12px;color:var(--muted);background:transparent;padding:0}
 .calendar-card,.records-card,.simple-card{background:#fff;border:1px solid var(--line);border-radius:24px;padding:15px;box-shadow:var(--shadow)}
 .monthbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .monthbar strong{font-size:17px}
@@ -48,7 +48,7 @@ button{border:0;cursor:pointer}
 .holiday{font-size:8px;color:#b45e78;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .quick button{padding:15px;border-radius:18px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);font-weight:750}
-.quick .qin{color:var(--green);background:var(--greenbg)}.quick .qout{color:var(--red);background:var(--redbg)}
+.quick .qin{color:var(--green);background:var(--greenbg)}.quick .qout覆{color:var(--red);background:var(--redbg)}
 .record{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
 .record:last-child{border-bottom:0}
 .ricon{width:39px;height:39px;border-radius:13px;display:grid;place-items:center;background:var(--pink3)}
@@ -119,178 +119,58 @@ button{border:0;cursor:pointer}
 
   <section class="section">
     <div class="sectionhead"><h2>🇲🇾 Public Holidays</h2><span class="tiny" id="holidayYear"></span></div>
-    <div class="simple-card holiday-list" id="holidayList"></div>
+    <div class="simple-card holiday-list" id="holidays">Loading holidays...</div>
   </section>
 </div>
 
-<div class="bottom"><button class="add" onclick="openModal()">＋ Add Money</button></div>
-<div class="toast" id="toast"></div>
+<div class="bottom">
+  <button class="add" onclick="openModal('expense')">＋ Add Record</button>
+</div>
 
-<div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
+<!-- Add/Edit Transaction Modal -->
+<div class="modal" id="txModal">
   <div class="sheet">
-    <button class="close" onclick="closeModal()">×</button>
+    <button class="close" onclick="closeModal()">✕</button>
     <h3 id="modalTitle">Add Record</h3>
+    
     <div class="segment">
-      <button id="incomeTab" onclick="setType('income')">🟢 Money In</button>
-      <button id="expenseTab" onclick="setType('expense')">🔴 Money Out</button>
+      <button id="tab-income" onclick="setModalType('income')">Money In</button>
+      <button id="tab-expense" onclick="setModalType('expense')">Money Out</button>
     </div>
-    <div class="field"><label>Amount (RM)</label><input id="amount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div>
-    <div class="field"><label>Date</label><input id="date" type="date"></div>
-    <div class="field"><label>Category</label><select id="category"></select></div>
-    <div class="field"><label>Note (optional)</label><input id="note" maxlength="80" placeholder="e.g. lunch / salary"></div>
-    <button class="save" onclick="saveRecord()">Save Record 💗</button>
+
+    <div class="field">
+      <label>Amount (RM)</label>
+      <input type="number" id="txAmount" step="0.01" placeholder="0.00" inputmode="decimal">
+    </div>
+
+    <div class="field">
+      <label>Description / Category</label>
+      <input type="text" id="txDesc" placeholder="e.g., Lunch, Salary, Groceries">
+    </div>
+
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="txDate">
+    </div>
+
+    <div class="field" id="debtField">
+      <label>Is this BNPL / Debt?</label>
+      <select id="txDebt">
+        <option value="no">No</option>
+        <option value="yes">Yes</option>
+      </select>
+    </div>
+
+    <button class="save" onclick="saveRecord()">Save Record</button>
   </div>
 </div>
 
-<div class="modal" id="settings" onclick="if(event.target===this)closeSettings()">
+<!-- Settings Modal -->
+<div class="modal" id="settingsModal">
   <div class="sheet">
-    <button class="close" onclick="closeSettings()">×</button>
-    <h3>Settings & Backup</h3>
+    <button class="close" onclick="closeModal()">✕</button>
+    <h3>Settings ⚙️</h3>
     <div class="settings-grid">
       <button onclick="exportData()">📤 Export Backup</button>
-      <button onclick="document.getElementById('importFile').click()">📥 Import Backup</button>
-      <button onclick="goToday()">📅 Today</button>
-      <button onclick="showAllRecords()">🧾 All Records</button>
+      <button onclick="triggerImport()">📥 Import Backup</button>
     </div>
-    <input id="importFile" type="file" accept=".json,application/json" hidden onchange="importData(event)">
-    <div class="note">Your records are stored on this device/browser using local storage. Export a backup before changing phones or clearing browser data. This app works offline after you save the HTML file.</div>
-    <div class="section">
-      <div class="sectionhead"><h2>Categories</h2></div>
-      <div class="note">Income: Salary, Pocket Money, PTPTN, Refund, Other Income.<br>Expense: Food, Transport, Shopping, Bills, Rent, Phone, Subscriptions, Health, Flowers / Hobby, EPF, SOCSO, BNPL Payment, Other Expense.</div>
-    </div>
-  </div>
-</div>
-
-<script>
-const KEY='myMoneyTracker_v4';
-const incomeCats=['Salary','Pocket Money','PTPTN','Refund','Other Income'];
-const expenseCats=['Food','Transport','Shopping','Bills','Rent','Phone','Subscriptions','Health','Flowers / Hobby','EPF','SOCSO','BNPL Payment','Other Expense'];
-
-/* Malaysia public holidays. Federal/common dates are included for 2026-2028.
-   Variable Islamic holidays may differ by official gazette/state; update this list if needed. */
-const holidays={
-2026:[
-['2026-01-01','New Year’s Day'],['2026-01-18','Israk and Mikraj'],['2026-02-01','Federal Territory Day'],['2026-02-17','Chinese New Year'],['2026-02-18','Chinese New Year (Day 2)'],['2026-03-20','Nuzul Al-Quran'],['2026-03-21','Hari Raya Aidilfitri'],['2026-03-22','Hari Raya Aidilfitri (Day 2)'],['2026-05-01','Labour Day'],['2026-05-27','Hari Raya Haji'],['2026-05-31','Wesak Day'],['2026-06-01','Agong’s Birthday'],['2026-06-17','Awal Muharram'],['2026-08-25','Prophet Muhammad’s Birthday'],['2026-08-31','National Day'],['2026-09-16','Malaysia Day'],['2026-11-08','Deepavali'],['2026-12-25','Christmas Day']
-],
-2027:[
-['2027-01-01','New Year’s Day'],['2027-02-06','Chinese New Year'],['2027-02-07','Chinese New Year (Day 2)'],['2027-03-10','Hari Raya Aidilfitri'],['2027-03-11','Hari Raya Aidilfitri (Day 2)'],['2027-05-01','Labour Day'],['2027-05-17','Hari Raya Haji'],['2027-05-20','Wesak Day'],['2027-06-07','Agong’s Birthday'],['2027-06-07','Awal Muharram'],['2027-08-15','Prophet Muhammad’s Birthday'],['2027-08-31','National Day'],['2027-09-16','Malaysia Day'],['2027-10-28','Deepavali'],['2027-12-25','Christmas Day']
-],
-2028:[
-['2028-01-01','New Year’s Day'],['2028-01-26','Chinese New Year'],['2028-01-27','Chinese New Year (Day 2)'],['2028-02-26','Hari Raya Aidilfitri'],['2028-02-27','Hari Raya Aidilfitri (Day 2)'],['2028-05-01','Labour Day'],['2028-05-05','Wesak Day'],['2028-05-06','Hari Raya Haji'],['2028-06-02','Agong’s Birthday'],['2028-06-24','Awal Muharram'],['2028-08-04','Prophet Muhammad’s Birthday'],['2028-08-31','National Day'],['2028-09-16','Malaysia Day'],['2028-10-17','Deepavali'],['2028-12-25','Christmas Day']
-]};
-
-let data=load();
-let view=new Date(); view.setDate(1);
-let currentType='expense';
-
-function load(){try{return JSON.parse(localStorage.getItem(KEY))||{records:[]}}catch(e){return{records:[]}}}
-function persist(){localStorage.setItem(KEY,JSON.stringify(data))}
-function money(n){return 'RM '+Number(n).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2})}
-function fmtDate(s){return new Date(s+'T00:00:00').toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'numeric'})}
-function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),1800)}
-function isoLocal(d){return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
-function today(){return isoLocal(new Date())}
-function getHoliday(date){let arr=holidays[date.slice(0,4)]||[];return arr.find(x=>x[0]===date)}
-function totals(){
- let inc=data.records.filter(r=>r.type==='income').reduce((a,r)=>a+Number(r.amount),0);
- let out=data.records.filter(r=>r.type==='expense').reduce((a,r)=>a+Number(r.amount),0);
- let debt=data.records.filter(r=>r.type==='expense'&&r.category==='BNPL Payment').reduce((a,r)=>a+Number(r.amount),0);
- return {inc,out,debt,balance:inc-out}
-}
-function render(){
- let t=totals();
- document.getElementById('balance').textContent=money(t.balance);
- document.getElementById('income').textContent='+'+money(t.inc).replace('RM ','RM ');
- document.getElementById('expense').textContent='-'+money(t.out).replace('RM ','RM ');
- document.getElementById('debt').textContent=money(t.debt);
- renderCalendar();renderRecords(data.records.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8));renderHolidays();
-}
-function renderCalendar(){
- const y=view.getFullYear(),m=view.getMonth();
- document.getElementById('monthTitle').textContent=view.toLocaleDateString('en-MY',{month:'long',year:'numeric'});
- const first=new Date(y,m,1), days=new Date(y,m+1,0).getDate();
- let start=(first.getDay()+6)%7;
- let h='';
- for(let i=0;i<start;i++)h+='<div class="day empty"></div>';
- for(let d=1;d<=days;d++){
-   let date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-   let rs=data.records.filter(r=>r.date===date);
-   let inc=rs.filter(r=>r.type==='income').reduce((a,r)=>a+Number(r.amount),0);
-   let out=rs.filter(r=>r.type==='expense').reduce((a,r)=>a+Number(r.amount),0);
-   let cls=inc&&out?'both':inc?'in':out?'out':'';
-   let val=inc&&out?`+${shortMoney(inc)} / -${shortMoney(out)}`:inc?`+${shortMoney(inc)}`:out?`-${shortMoney(out)}`:'';
-   let hol=getHoliday(date);
-   let isToday=date===today();
-   h+=`<button class="day ${cls} ${isToday?'today':''}" onclick="openModalFor('${date}')">
-     <span class="daynum">${d}</span>${hol?'<i class="daydot"></i>':''}
-     ${val?`<div class="daytotal">${val}</div>`:''}
-     ${hol?`<div class="holiday">${esc(hol[1])}</div>`:''}
-   </button>`;
- }
- document.getElementById('calendar').innerHTML=h;
-}
-function shortMoney(n){return Number(n)>=1000?(Number(n)/1000).toFixed(1).replace('.0','')+'k':Math.round(Number(n)).toString()}
-function renderRecords(rs){
- let el=document.getElementById('records');
- if(!rs.length){el.innerHTML='<div class="emptymsg">No records yet 💗<br>Add your first money movement.</div>';return}
- el.innerHTML=rs.map(r=>`<div class="record">
- <div class="ricon">${r.type==='income'?'💚':'💸'}</div>
- <div class="rmain"><div class="rtitle">${esc(r.category)}</div><div class="rmeta">${fmtDate(r.date)}${r.note?' · '+esc(r.note):''}</div></div>
- <div class="ramt ${r.type==='income'?'green':'red'}">${r.type==='income'?'+':'-'}${money(r.amount).replace('RM ','RM ')}</div>
- <button class="delete" onclick="deleteRecord('${r.id}')">×</button></div>`).join('');
-}
-function renderHolidays(){
- let y=view.getFullYear(), arr=holidays[y]||[];
- document.getElementById('holidayYear').textContent=y;
- document.getElementById('holidayList').innerHTML=arr.length?arr.map(x=>`<div><b>${new Date(x[0]+'T00:00:00').toLocaleDateString('en-MY',{day:'2-digit',month:'short'})}</b> · ${esc(x[1])}</div>`).join(''):'No built-in holiday list for this year yet.';
-}
-function changeMonth(n){view.setMonth(view.getMonth()+n);render()}
-function goToday(){view=new Date();view.setDate(1);closeSettings();render()}
-function openModal(type='expense'){currentType=type;document.getElementById('modal').classList.add('show');document.getElementById('amount').value='';document.getElementById('note').value='';document.getElementById('date').value=today();updateModal()}
-function openModalFor(date){openModal(currentType);document.getElementById('date').value=date}
-function setType(type){currentType=type;updateModal()}
-function updateModal(){
- document.getElementById('modalTitle').textContent=currentType==='income'?'Add Money In':'Add Money Out';
- document.getElementById('incomeTab').classList.toggle('active',currentType==='income');
- document.getElementById('expenseTab').classList.toggle('active',currentType==='expense');
- document.getElementById('category').innerHTML=(currentType==='income'?incomeCats:expenseCats).map(x=>`<option>${x}</option>`).join('');
-}
-function closeModal(){document.getElementById('modal').classList.remove('show')}
-function saveRecord(){
- let amount=Number(document.getElementById('amount').value),date=document.getElementById('date').value;
- if(!amount||amount<0||!date){toast('Please enter amount and date');return}
- data.records.push({id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(),type:currentType,amount:Math.round(amount*100)/100,date,category:document.getElementById('category').value,note:document.getElementById('note').value.trim()});
- persist();closeModal();render();toast('Saved 💗');
-}
-function deleteRecord(id){if(!confirm('Delete this record?'))return;data.records=data.records.filter(r=>r.id!==id);persist();render();toast('Deleted')}
-function showAllRecords(){
- closeSettings();
- let list=data.records.slice().sort((a,b)=>b.date.localeCompare(a.date));
- let html=list.length?list.map(r=>`<div class="record"><div class="ricon">${r.type==='income'?'💚':'💸'}</div><div class="rmain"><div class="rtitle">${esc(r.category)}</div><div class="rmeta">${fmtDate(r.date)}${r.note?' · '+esc(r.note):''}</div></div><div class="ramt ${r.type==='income'?'green':'red'}">${r.type==='income'?'+':'-'}${money(r.amount)}</div><button class="delete" onclick="deleteRecord('${r.id}');showAllRecords()">×</button></div>`).join(''):'<div class="emptymsg">No records yet.</div>';
- document.getElementById('records').innerHTML=html;
- document.querySelector('.sectionhead h2').textContent='All Records';
- window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
-}
-function openSettings(){document.getElementById('settings').classList.add('show')}
-function closeSettings(){document.getElementById('settings').classList.remove('show')}
-function exportData(){
- const payload={app:'My Money Tracker',version:4,exportedAt:new Date().toISOString(),records:data.records};
- const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
- const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='My-Money-Backup-'+today()+'.json';a.click();URL.revokeObjectURL(a.href);toast('Backup exported 📤');
-}
-function importData(e){
- const file=e.target.files[0];if(!file)return;
- const reader=new FileReader();
- reader.onload=()=>{try{
-   const p=JSON.parse(reader.result);let incoming=Array.isArray(p)?p:p.records;
-   if(!Array.isArray(incoming))throw new Error();
-   const clean=incoming.filter(r=>r&&r.type&&r.date&&Number.isFinite(Number(r.amount))&&r.category).map(r=>({...r,id:r.id||Date.now()+Math.random()}));
-   if(!confirm(`Import ${clean.length} records? This will replace your current records.`))return;
-   data.records=clean;persist();render();toast('Backup imported 📥');closeSettings();
- }catch(err){alert('This backup file is not valid.')}};reader.readAsText(file);e.target.value='';
-}
-render();
-</script>
-</body>
-</html>
